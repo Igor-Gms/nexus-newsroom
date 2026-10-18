@@ -24,7 +24,12 @@ export function ArticleCard({ article, index = 0 }: { article: Article; index?: 
     >
       <div className="relative h-36 overflow-hidden">
         {article.imageUrl ? (
-          <img src={article.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+          <img
+            src={article.imageUrl}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
         ) : (
           <div className="bg-brand grid h-full w-full place-items-center opacity-30">
             <Rss className="h-10 w-10 text-primary-foreground" aria-hidden />
@@ -50,7 +55,10 @@ export function ArticleCard({ article, index = 0 }: { article: Article; index?: 
             onClick={() => fav.mutate({ id: article.id, favorite: !isFav })}
             aria-pressed={isFav}
             aria-label={isFav ? "Remover dos favoritos" : "Favoritar"}
-            className={cn("rounded-lg p-2 transition-colors hover:bg-secondary", isFav ? "text-warning" : "text-muted-foreground")}
+            className={cn(
+              "rounded-lg p-2 transition-colors hover:bg-secondary",
+              isFav ? "text-warning" : "text-muted-foreground",
+            )}
           >
             <Star className="h-4 w-4" fill={isFav ? "currentColor" : "none"} />
           </button>
@@ -59,7 +67,10 @@ export function ArticleCard({ article, index = 0 }: { article: Article; index?: 
             onClick={() => read.mutate({ id: article.id, read: !isRead })}
             aria-pressed={isRead}
             aria-label={isRead ? "Marcar como não lido" : "Marcar como lido"}
-            className={cn("rounded-lg p-2 transition-colors hover:bg-secondary", isRead ? "text-success" : "text-muted-foreground")}
+            className={cn(
+              "rounded-lg p-2 transition-colors hover:bg-secondary",
+              isRead ? "text-success" : "text-muted-foreground",
+            )}
           >
             <Check className="h-4 w-4" />
           </button>

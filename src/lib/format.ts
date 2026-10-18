@@ -7,7 +7,11 @@ export function relativeTime(iso: string | number, now = Date.now()) {
   if (abs < 36e5) return rtf.format(Math.round(diff / 6e4), "minute");
   if (abs < 864e5) return rtf.format(Math.round(diff / 36e5), "hour");
   if (abs < 30 * 864e5) return rtf.format(Math.round(diff / 864e5), "day");
-  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export function greeting(date = new Date()) {

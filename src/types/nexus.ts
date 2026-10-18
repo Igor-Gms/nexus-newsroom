@@ -33,20 +33,26 @@ export interface Article {
 export type Period = "24h" | "7d" | "30d" | "all";
 
 export interface ArticleQuery {
-  q?: string;
-  category?: string;
-  feedId?: string;
-  period?: Period;
-  favorite?: boolean;
-  limit?: number;
+  q?: string | undefined;
+  category?: string | undefined;
+  feedId?: string | undefined;
+  period?: Period | undefined;
+  favorite?: boolean | undefined;
+  /** Só artigos ainda não lidos. */
+  unread?: boolean | undefined;
+  page?: number | undefined;
+  limit?: number | undefined;
 }
 
 export interface CreateFeedInput {
   url: string;
-  category?: string;
+  category?: string | undefined;
 }
 
 export interface Paginated<T> {
   items: T[];
   total: number;
+  page?: number;
+  limit?: number;
+  totalPages?: number;
 }

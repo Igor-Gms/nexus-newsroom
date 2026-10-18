@@ -1,24 +1,109 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { AlertTriangle, ArrowRight, Newspaper, Rss, Star, MailOpen } from "lucide-react";
+import { AddFeedButton } from "@/components/nexus/AddFeedDialog";
+import { ArticleList } from "@/components/nexus/ArticleList";
+import { PageHeader } from "@/components/nexus/PageHeader";
+import { StatCard } from "@/components/nexus/StatCard";
+import { useArticleTotal, useFeeds } from "@/hooks/use-nexus";
+import { greeting } from "@/lib/format";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({ meta: [{ title: "Início — NEXUS FEED" }] }),
+  component: HomePage,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+function HomePage() {
+  // A saudação depende do relógio do navegador: calculamos só após a montagem
+  // para não gerar diferença entre o HTML do servidor e o do cliente (hydration).
+  const [salutation, setSalutation] = useState("Olá");
+  useEffect(() => setSalutation(greeting()), []);
+
+  const feeds = useFeeds();
+  const all = useArticleTotal();
+  const unread = useArticleTotal({ unread: true });
+  const favorites = useArticleTotal({ favorite: true });
+
+  const feedCount = feeds.data?.length;
+  const feedsWithError = feeds.data?.filter((f) => f.status === "error").length ?? 0;
+
+  const summary =
+    unread.total === undefined || feedCount === undefined
+      ? "Carregando o resumo das suas notícias…"
+      : feedCount === 0
+        ? "Adicione sua primeira fonte RSS para começar."
+        : unread.total === 0
+          ? "Você está em dia: nenhum artigo não lido."
+          : `Você tem ${unread.total.toLocaleString("pt-BR")} ${unread.total === 1 ? "artigo não lido" : "artigos não lidos"} em ${feedCount} ${feedCount === 1 ? "fonte" : "fontes"}.`;
+
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
+    <>
+      <PageHeader
+        title={
+          <>
+            {salutation}, <span className="text-brand">leitor</span>
+          </>
+        }
+        description={summary}
+        actions={<AddFeedButton />}
       />
-    </div>
+
+      <section aria-label="Resumo" className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Artigos" value={all.total} loading={all.isPending} icon={Newspaper} />
+        <StatCard
+          label="Não lidos"
+          value={unread.total}
+          loading={unread.isPending}
+          icon={MailOpen}
+          tone="cyan"
+        />
+        <StatCard
+          label="Favoritos"
+          value={favorites.total}
+          loading={favorites.isPending}
+          icon={Star}
+          tone="warning"
+        />
+        <StatCard
+          label="Fontes RSS"
+          value={feedCount}
+          loading={feeds.isPending}
+          icon={Rss}
+          tone="success"
+        />
+      </section>
+
+      {feedsWithError > 0 && (
+        <div
+          role="status"
+          className="mb-8 flex flex-wrap items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm"
+        >
+          <AlertTriangle className="h-4 w-4 shrink-0 text-warning" aria-hidden />
+          <span>
+            {feedsWithError}{" "}
+            {feedsWithError === 1 ? "fonte está com erro" : "fontes estão com erro"} na última
+            atualização.
+          </span>
+          <Link to="/sources" className="ml-auto font-medium text-primary hover:underline">
+            Ver fontes
+          </Link>
+        </div>
+      )}
+
+      <section aria-labelledby="latest-title">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 id="latest-title" className="text-lg font-semibold">
+            Últimas notícias
+          </h2>
+          <Link
+            to="/articles"
+            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          >
+            Ver todas <ArrowRight className="h-4 w-4" aria-hidden />
+          </Link>
+        </div>
+        <ArticleList query={{ limit: 6 }} emptyAction={<AddFeedButton />} />
+      </section>
+    </>
   );
 }

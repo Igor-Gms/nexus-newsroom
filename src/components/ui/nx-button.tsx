@@ -7,7 +7,11 @@ const variants = {
   ghost: "text-muted-foreground hover:text-foreground hover:bg-secondary",
   danger: "bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25",
 } as const;
-const sizes = { sm: "h-8 px-3 text-xs gap-1.5", md: "h-10 px-4 text-sm gap-2", icon: "h-9 w-9" } as const;
+const sizes = {
+  sm: "h-8 px-3 text-xs gap-1.5",
+  md: "h-10 px-4 text-sm gap-2",
+  icon: "h-9 w-9",
+} as const;
 
 export interface NxButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: keyof typeof variants;

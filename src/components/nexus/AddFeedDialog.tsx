@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AlertCircle, CheckCircle2, Loader2, Plus, Trash2, X } from "lucide-react";
 import { NxButton } from "@/components/ui/nx-button";
 import { useCreateFeed, useDeleteFeed } from "@/hooks/use-nexus";
+import { capitalize, isSameUrl, normalizeUserUrl } from "@/lib/url";
 import { CATEGORIES } from "@/services";
 import type { Feed } from "@/types/nexus";
 
@@ -22,6 +23,8 @@ export function AddFeedDialog({ open, onClose }: { open: boolean; onClose: () =>
   const [url, setUrl] = useState("");
   const [category, setCategory] = useState<string>(CATEGORIES[0]);
   const [created, setCreated] = useState<Feed | null>(null);
+  // Endereço enviado à API: se o feed salvo for outro, ele foi encontrado automaticamente.
+  const [submitted, setSubmitted] = useState("");
   const create = useCreateFeed();
   const remove = useDeleteFeed();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -40,13 +43,22 @@ export function AddFeedDialog({ open, onClose }: { open: boolean; onClose: () =>
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (!url.trim()) return;
-    create.mutate({ url: url.trim(), category }, { onSuccess: (f) => setCreated(f) });
+    const address = normalizeUserUrl(url);
+    if (!address) return;
+    setSubmitted(address);
+    create.mutate({ url: address, category }, { onSuccess: (f) => setCreated(f) });
   };
+
+  const autoDiscovered = created !== null && !isSameUrl(created.url, submitted);
 
   const undo = () => {
     if (!created) return;
-    remove.mutate(created.id, { onSuccess: () => { setCreated(null); create.reset(); } });
+    remove.mutate(created.id, {
+      onSuccess: () => {
+        setCreated(null);
+        create.reset();
+      },
+    });
   };
 
   return (
@@ -71,29 +83,51 @@ export function AddFeedDialog({ open, onClose }: { open: boolean; onClose: () =>
           >
             <div className="mb-5 flex items-start justify-between">
               <div>
-                <h2 id="add-feed-title" className="text-xl font-semibold">Nova fonte RSS</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Cole a URL de um feed RSS ou Atom.</p>
+                <h2 id="add-feed-title" className="text-xl font-semibold">
+                  Nova fonte RSS
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Cole o endereço do site ou a URL de um feed RSS/Atom.
+                </p>
               </div>
-              <NxButton variant="ghost" size="icon" onClick={onClose} aria-label="Fechar"><X className="h-4 w-4" /></NxButton>
+              <NxButton variant="ghost" size="icon" onClick={onClose} aria-label="Fechar">
+                <X className="h-4 w-4" />
+              </NxButton>
             </div>
 
             <form onSubmit={submit} className="space-y-4">
               <div>
-                <label htmlFor="feed-url" className="mb-1.5 block text-sm font-medium">URL do feed</label>
+                <label htmlFor="feed-url" className="mb-1.5 block text-sm font-medium">
+                  Endereço do site ou do feed
+                </label>
                 <input
                   ref={inputRef}
                   id="feed-url"
-                  type="url"
+                  type="text"
+                  inputMode="url"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   required
-                  placeholder="https://site.com/feed.xml"
+                  aria-describedby="feed-url-help"
+                  placeholder="exemplo.com.br ou https://exemplo.com.br/feed.xml"
                   value={url}
-                  onChange={(e) => { setUrl(e.target.value); if (create.isError) create.reset(); }}
+                  onChange={(e) => {
+                    setUrl(e.target.value);
+                    if (create.isError) create.reset();
+                  }}
                   disabled={create.isPending || !!created}
                   className="h-11 w-full rounded-lg border border-input bg-surface px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
                 />
+                <p id="feed-url-help" className="mt-1.5 text-xs text-muted-foreground">
+                  Basta o endereço do site: procuramos o feed RSS/Atom sozinhos. Se você já tem o
+                  link do feed, pode colá-lo direto.
+                </p>
               </div>
               <div>
-                <label htmlFor="feed-cat" className="mb-1.5 block text-sm font-medium">Categoria</label>
+                <label htmlFor="feed-cat" className="mb-1.5 block text-sm font-medium">
+                  Categoria
+                </label>
                 <select
                   id="feed-cat"
                   value={category}
@@ -101,22 +135,41 @@ export function AddFeedDialog({ open, onClose }: { open: boolean; onClose: () =>
                   disabled={create.isPending || !!created}
                   className="h-11 w-full rounded-lg border border-input bg-surface px-3 text-sm outline-none focus:border-primary"
                 >
-                  {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                  {CATEGORIES.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
                 </select>
               </div>
 
               <div aria-live="polite">
+                {create.isPending && (
+                  <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    Procurando o feed. Isso pode levar alguns segundos…
+                  </p>
+                )}
                 {create.isError && (
                   <div className="flex gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                    <span>{create.error instanceof Error ? create.error.message : "Falha na validação."}</span>
+                    <span>
+                      {create.error instanceof Error
+                        ? capitalize(create.error.message)
+                        : "Falha na validação."}
+                    </span>
                   </div>
                 )}
                 {created && (
                   <div className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/10 p-3 text-sm">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden />
                     <div className="flex-1">
-                      <p className="font-medium">Fonte validada: {created.title}</p>
+                      <p className="font-medium">
+                        {autoDiscovered ? "Feed encontrado" : "Fonte validada"}: {created.title}
+                      </p>
+                      {autoDiscovered && (
+                        <p className="text-xs text-muted-foreground">
+                          Encontramos o feed automaticamente a partir do endereço do site.
+                        </p>
+                      )}
                       <p className="break-all text-xs text-muted-foreground">{created.url}</p>
                     </div>
                     <NxButton variant="danger" size="sm" onClick={undo} disabled={remove.isPending}>
@@ -129,14 +182,37 @@ export function AddFeedDialog({ open, onClose }: { open: boolean; onClose: () =>
               <div className="flex justify-end gap-2 pt-1">
                 {created ? (
                   <>
-                    <NxButton onClick={() => { setCreated(null); setUrl(""); create.reset(); inputRef.current?.focus(); }}>Adicionar outra</NxButton>
-                    <NxButton variant="primary" onClick={onClose}>Concluir</NxButton>
+                    <NxButton
+                      onClick={() => {
+                        setCreated(null);
+                        setUrl("");
+                        create.reset();
+                        inputRef.current?.focus();
+                      }}
+                    >
+                      Adicionar outra
+                    </NxButton>
+                    <NxButton variant="primary" onClick={onClose}>
+                      Concluir
+                    </NxButton>
                   </>
                 ) : (
                   <>
-                    <NxButton variant="ghost" onClick={onClose}>Cancelar</NxButton>
-                    <NxButton type="submit" variant="primary" disabled={create.isPending || !url.trim()}>
-                      {create.isPending ? <><Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Validando…</> : "Validar e adicionar"}
+                    <NxButton variant="ghost" onClick={onClose}>
+                      Cancelar
+                    </NxButton>
+                    <NxButton
+                      type="submit"
+                      variant="primary"
+                      disabled={create.isPending || !url.trim()}
+                    >
+                      {create.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Procurando…
+                        </>
+                      ) : (
+                        "Buscar e adicionar"
+                      )}
                     </NxButton>
                   </>
                 )}

@@ -31,16 +31,25 @@ export const demoApi: NexusApi = {
       try {
         parsed = new URL(url);
       } catch {
-        throw new ApiError("URL inválida. Use um endereço completo, ex.: https://site.com/feed.xml", 422);
+        throw new ApiError("URL inválida. Confira o endereço digitado.", 422);
       }
-      if (!/^https?:$/.test(parsed.protocol)) throw new ApiError("Apenas URLs http(s) são aceitas.", 422);
-      if (state.feeds.some((f) => f.url === parsed.href)) throw new ApiError("Esta fonte já está cadastrada.", 409);
-      if (!/(rss|feed|atom|xml)/i.test(parsed.href))
-        throw new ApiError("Nenhum feed RSS/Atom foi encontrado nesta URL (simulação de validação).", 422);
+      if (!/^https?:$/.test(parsed.protocol))
+        throw new ApiError("Apenas URLs http(s) são aceitas.", 422);
+      // Simulação da busca automática da API real: se o endereço não parece um feed, "descobrimos"
+      // o feed do site em /feed. Hosts com "vazio" (ex.: https://vazio.exemplo.com) simulam um site que não oferece feed.
+      const looksLikeFeed = /(rss|feed|atom|xml)/i.test(parsed.href);
+      if (!looksLikeFeed && parsed.hostname.includes("vazio"))
+        throw new ApiError(
+          `não encontramos nenhum feed RSS ou Atom em ${parsed.hostname}. O site pode não oferecer feed. Se você souber o endereço do feed, cole o link direto dele (costuma terminar em /feed, /rss ou .xml) (simulação)`,
+          422,
+        );
+      const feedUrl = looksLikeFeed ? parsed.href : `${parsed.origin}/feed`;
+      if (state.feeds.some((f) => f.url === feedUrl))
+        throw new ApiError("essa fonte já está cadastrada", 409);
       const feed: Feed = {
         id: `demo-${Date.now()}`,
         title: parsed.hostname.replace(/^www\./, ""),
-        url: parsed.href,
+        url: feedUrl,
         siteUrl: parsed.origin,
         category: category || "Tecnologia",
         status: "pending",
@@ -73,13 +82,25 @@ export const demoApi: NexusApi = {
         if (q.category && a.category !== q.category) return false;
         if (q.feedId && a.feedId !== q.feedId) return false;
         if (q.favorite && !a.isFavorite) return false;
-        if (q.period && q.period !== "all" && now - Date.parse(a.publishedAt) > PERIOD_MS[q.period]) return false;
-        if (term && !`${a.title} ${a.summary} ${a.feedTitle}`.toLowerCase().includes(term)) return false;
+        if (q.unread && a.isRead) return false;
+        if (q.period && q.period !== "all" && now - Date.parse(a.publishedAt) > PERIOD_MS[q.period])
+          return false;
+        if (term && !`${a.title} ${a.summary} ${a.feedTitle}`.toLowerCase().includes(term))
+          return false;
         return true;
       });
       items = items.sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
       const total = items.length;
-      return { items: (q.limit ? items.slice(0, q.limit) : items).map((a) => ({ ...a })), total };
+      const limit = q.limit ?? (total || 1);
+      const page = Math.max(1, q.page ?? 1);
+      const slice = items.slice((page - 1) * limit, page * limit);
+      return {
+        items: slice.map((a) => ({ ...a })),
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      };
     },
     async get(id) {
       await wait(200);

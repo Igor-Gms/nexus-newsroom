@@ -7,6 +7,13 @@ import { httpApi } from "./http-api";
 export const api: NexusApi = isApiConfigured ? httpApi : demoApi;
 export const isDemoMode = !isApiConfigured;
 
-export const CATEGORIES = ["Tecnologia", "Ciência", "Negócios", "Design", "Cultura", "Mundo"] as const;
+export const CATEGORIES = [
+  "Tecnologia",
+  "Ciência",
+  "Negócios",
+  "Design",
+  "Cultura",
+  "Mundo",
+] as const;
 
 export { ApiError } from "./api-client";

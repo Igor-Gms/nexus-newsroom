@@ -52,10 +52,17 @@ export function AppSidebar({
             className={cn(
               "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
               compact && "justify-center px-0",
-              active ? "bg-primary/15 text-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+              active
+                ? "bg-primary/15 text-foreground"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground",
             )}
           >
-            {active && <span className="bg-brand absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full" aria-hidden />}
+            {active && (
+              <span
+                className="bg-brand absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full"
+                aria-hidden
+              />
+            )}
             <Icon className={cn("h-4.5 w-4.5 shrink-0", active && "text-primary")} aria-hidden />
             {!compact && <span>{label}</span>}
             {compact && <span className="sr-only">{label}</span>}
@@ -73,7 +80,9 @@ export function AppSidebar({
           collapsed ? "w-[76px]" : "w-64",
         )}
       >
-        <div className={cn("mb-8 flex items-center", collapsed ? "justify-center" : "justify-between")}>
+        <div
+          className={cn("mb-8 flex items-center", collapsed ? "justify-center" : "justify-between")}
+        >
           <Logo compact={collapsed} />
         </div>
         {nav(collapsed)}
@@ -83,17 +92,32 @@ export function AppSidebar({
           aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
           className="mt-auto flex items-center justify-center gap-2 rounded-lg py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
         >
-          <ChevronsLeft className={cn("h-4 w-4 transition-transform", collapsed && "rotate-180")} aria-hidden />
+          <ChevronsLeft
+            className={cn("h-4 w-4 transition-transform", collapsed && "rotate-180")}
+            aria-hidden
+          />
           {!collapsed && "Recolher"}
         </button>
       </aside>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-background/70 backdrop-blur-sm md:hidden" onClick={onCloseMobile}>
-          <aside className="glass h-full w-72 bg-popover p-4" onClick={(e) => e.stopPropagation()} aria-label="Menu">
+        <div
+          className="fixed inset-0 z-40 bg-background/70 backdrop-blur-sm md:hidden"
+          onClick={onCloseMobile}
+        >
+          <aside
+            className="glass h-full w-72 bg-popover p-4"
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Menu"
+          >
             <div className="mb-8 flex items-center justify-between">
               <Logo />
-              <button type="button" onClick={onCloseMobile} aria-label="Fechar menu" className="rounded-lg p-2 hover:bg-secondary">
+              <button
+                type="button"
+                onClick={onCloseMobile}
+                aria-label="Fechar menu"
+                className="rounded-lg p-2 hover:bg-secondary"
+              >
                 <X className="h-4 w-4" />
               </button>
             </div>

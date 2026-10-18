@@ -1,5 +1,5 @@
 // Thin fetch wrapper for the external Rust/Axum REST API.
-const RAW_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "";
+const RAW_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 export const API_BASE_URL = RAW_BASE.replace(/\/$/, "");
 export const isApiConfigured = API_BASE_URL.length > 0;
 
@@ -12,6 +12,23 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Extrai a mensagem de erro do corpo da resposta.
+ * Formato da API Rust: { "error": { "code": "...", "message": "..." } }.
+ * Também aceita { "message": "..." } e { "error": "..." }.
+ */
+export function extractErrorMessage(body: unknown, fallback: string): string {
+  if (typeof body !== "object" || body === null) return fallback;
+  const { error, message } = body as { error?: unknown; message?: unknown };
+  if (typeof error === "object" && error !== null) {
+    const nested = (error as { message?: unknown }).message;
+    if (typeof nested === "string" && nested) return nested;
+  }
+  if (typeof message === "string" && message) return message;
+  if (typeof error === "string" && error) return error;
+  return fallback;
+}
+
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
@@ -20,13 +37,15 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
       headers: { Accept: "application/json", "Content-Type": "application/json", ...init?.headers },
     });
   } catch {
-    throw new ApiError("Não foi possível conectar à API. Verifique se o servidor está em execução.", 0);
+    throw new ApiError(
+      "Não foi possível conectar à API. Verifique se o servidor está em execução.",
+      0,
+    );
   }
   if (!res.ok) {
     let message = `Erro ${res.status}`;
     try {
-      const body = (await res.json()) as { message?: string; error?: string };
-      message = body.message ?? body.error ?? message;
+      message = extractErrorMessage(await res.json(), message);
     } catch {
       /* body não é JSON */
     }
@@ -38,7 +57,8 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function toQueryString(params: Record<string, string | number | boolean | undefined>) {
   const sp = new URLSearchParams();
-  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") sp.set(k, String(v));
+  for (const [k, v] of Object.entries(params))
+    if (v !== undefined && v !== "") sp.set(k, String(v));
   const s = sp.toString();
   return s ? `?${s}` : "";
 }

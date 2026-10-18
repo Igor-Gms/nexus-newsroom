@@ -34,7 +34,10 @@ export function AppHeader({ onOpenMenu }: { onOpenMenu: () => void }) {
     const esc = (e: KeyboardEvent) => e.key === "Escape" && setMenu(false);
     document.addEventListener("mousedown", close);
     document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", esc); };
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", esc);
+    };
   }, [menu]);
 
   const submit = (e: FormEvent) => {
@@ -46,13 +49,23 @@ export function AppHeader({ onOpenMenu }: { onOpenMenu: () => void }) {
 
   return (
     <header className="glass sticky top-0 z-30 flex h-16 items-center gap-3 border-x-0 border-t-0 px-4 md:px-8">
-      <button type="button" onClick={onOpenMenu} aria-label="Abrir menu" className="rounded-lg p-2 hover:bg-secondary md:hidden">
+      <button
+        type="button"
+        onClick={onOpenMenu}
+        aria-label="Abrir menu"
+        className="rounded-lg p-2 hover:bg-secondary md:hidden"
+      >
         <Menu className="h-5 w-5" />
       </button>
 
       <form onSubmit={submit} role="search" className="relative max-w-xl flex-1">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-        <label htmlFor="global-search" className="sr-only">Buscar artigos</label>
+        <Search
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+          aria-hidden
+        />
+        <label htmlFor="global-search" className="sr-only">
+          Buscar artigos
+        </label>
         <input
           id="global-search"
           type="search"
@@ -76,10 +89,17 @@ export function AppHeader({ onOpenMenu }: { onOpenMenu: () => void }) {
           className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
           aria-label="Atualizar todas as fontes"
         >
-          <span className={cn("h-2 w-2 rounded-full", busy ? "animate-pulse bg-cyan" : "bg-success")} aria-hidden />
+          <span
+            className={cn("h-2 w-2 rounded-full", busy ? "animate-pulse bg-cyan" : "bg-success")}
+            aria-hidden
+          />
           <RefreshCw className={cn("h-4 w-4", busy && "animate-spin")} aria-hidden />
           <span className="hidden sm:inline" aria-live="polite">
-            {busy ? "Atualizando…" : lastSync ? `Atualizado ${relativeTime(lastSync)}` : "Sincronizar"}
+            {busy
+              ? "Atualizando…"
+              : lastSync
+                ? `Atualizado ${relativeTime(lastSync)}`
+                : "Sincronizar"}
           </span>
         </button>
 
@@ -95,7 +115,10 @@ export function AppHeader({ onOpenMenu }: { onOpenMenu: () => void }) {
             NX
           </button>
           {menu && (
-            <div role="menu" className="glass absolute right-0 mt-2 w-72 rounded-xl bg-popover p-2 shadow-card">
+            <div
+              role="menu"
+              className="glass absolute right-0 mt-2 w-72 rounded-xl bg-popover p-2 shadow-card"
+            >
               <div className="flex items-center gap-3 border-b px-3 py-3">
                 <User className="h-4 w-4 text-muted-foreground" aria-hidden />
                 <div>
@@ -106,13 +129,18 @@ export function AppHeader({ onOpenMenu }: { onOpenMenu: () => void }) {
               <div className="flex items-start gap-3 px-3 py-3 text-xs text-muted-foreground">
                 <Server className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
                 <span className="break-all">
-                  {isDemoMode ? "API não configurada — exibindo dados demonstrativos. Defina VITE_API_BASE_URL." : `Conectado a ${API_BASE_URL}`}
+                  {isDemoMode
+                    ? "API não configurada — exibindo dados demonstrativos. Defina VITE_API_BASE_URL."
+                    : `Conectado a ${API_BASE_URL}`}
                 </span>
               </div>
               <button
                 role="menuitem"
                 type="button"
-                onClick={() => { refreshAll.mutate(); setMenu(false); }}
+                onClick={() => {
+                  refreshAll.mutate();
+                  setMenu(false);
+                }}
                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-secondary"
               >
                 <RefreshCw className="h-4 w-4" aria-hidden /> Atualizar todas as fontes
