@@ -3,7 +3,6 @@ import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useIsFetching } from "@tanstack/react-query";
 import { Menu, RefreshCw, Search, Server, User } from "lucide-react";
 import { useRefreshAll } from "@/hooks/use-nexus";
-import { isDemoMode } from "@/services";
 import { API_BASE_URL } from "@/services/api-client";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -77,11 +76,6 @@ export function AppHeader({ onOpenMenu }: { onOpenMenu: () => void }) {
       </form>
 
       <div className="ml-auto flex items-center gap-2">
-        {isDemoMode && (
-          <span className="hidden rounded-full border border-warning/30 bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning lg:inline">
-            Modo demonstração
-          </span>
-        )}
         <button
           type="button"
           onClick={() => refreshAll.mutate()}
@@ -129,9 +123,7 @@ export function AppHeader({ onOpenMenu }: { onOpenMenu: () => void }) {
               <div className="flex items-start gap-3 px-3 py-3 text-xs text-muted-foreground">
                 <Server className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
                 <span className="break-all">
-                  {isDemoMode
-                    ? "API não configurada — exibindo dados demonstrativos. Defina VITE_API_BASE_URL."
-                    : `Conectado a ${API_BASE_URL}`}
+{API_BASE_URL ? `Conectado a ${API_BASE_URL}` : "API na mesma origem"}
                 </span>
               </div>
               <button

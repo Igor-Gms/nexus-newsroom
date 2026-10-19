@@ -1,7 +1,7 @@
 // Thin fetch wrapper for the external Rust/Axum REST API.
-const RAW_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+const DEFAULT_API_BASE_URL = import.meta.env.DEV ? "http://localhost:3000" : "";
+const RAW_BASE = import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL;
 export const API_BASE_URL = RAW_BASE.replace(/\/$/, "");
-export const isApiConfigured = API_BASE_URL.length > 0;
 
 export class ApiError extends Error {
   status: number;
