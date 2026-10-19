@@ -1,6 +1,6 @@
 import type { Article, ArticleQuery, CreateFeedInput, Feed, Paginated } from "@/types/nexus";
 
-/** Contract implemented by both the HTTP client and the demo adapter. */
+/** Contrato usado pelo cliente HTTP e pelos serviços da aplicação. */
 export interface NexusApi {
   feeds: {
     list(): Promise<Feed[]>;

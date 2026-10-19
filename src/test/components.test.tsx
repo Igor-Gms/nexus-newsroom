@@ -16,9 +16,29 @@ const wrap = (ui: React.ReactNode) => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("ArticleList", () => {
-  it("mostra os artigos do modo demonstração", async () => {
+  it("mostra os artigos retornados pela API", async () => {
+    vi.spyOn(api.articles, "list").mockResolvedValue({
+      items: [
+        {
+          id: "a1",
+          feedId: "f1",
+          feedTitle: "Blog Exemplo",
+          title: "Notícia da API",
+          summary: "Resumo retornado pela API.",
+          url: "https://example.com/article",
+          category: "Tecnologia",
+          publishedAt: new Date().toISOString(),
+          isRead: false,
+          isFavorite: false,
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 3,
+      totalPages: 1,
+    });
     wrap(<ArticleList query={{ limit: 3 }} />);
-    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(3), { timeout: 3000 });
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(1), { timeout: 3000 });
   });
 
   it("mostra erro de conexão com botão para tentar de novo", async () => {

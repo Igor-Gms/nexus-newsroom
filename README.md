@@ -121,11 +121,8 @@ Para cada item do feed, a API:
 
 ### Camada de serviços do frontend
 
-A interface conversa apenas com um contrato (`NexusApi`), implementado por:
-- `http-api.ts`: a implementação real, que chama a API em Rust (configurada por `VITE_API_BASE_URL`);
-- `demo/`: dados fictícios em memória, usados quando a variável não está definida.
-
-Isso mantém as telas independentes de onde os dados vêm.
+A interface usa exclusivamente `http-api.ts`, que conversa com a API Rust por meio de `VITE_API_BASE_URL`.
+No desenvolvimento local, o endereço padrão é `http://localhost:3000`; não há dados fictícios nem adaptador de demonstração.
 
 ## Tecnologias
 
@@ -137,29 +134,20 @@ Isso mantém as telas independentes de onde os dados vêm.
 
 ## Como rodar
 
-**Pré-requisitos:** [Rust](https://rustup.rs) 1.85 ou superior e [Bun](https://bun.sh) (ou Node.js 20+ com npm). Abra **dois terminais**.
+**Pré-requisitos:** [Rust](https://rustup.rs) 1.85 ou superior e Node.js 20 ou superior. O Bun pode ser usado para instalar as dependências.
 
-**1. API em Rust**
+O comando de desenvolvimento inicia a API Rust, espera a resposta de `/api/health` e então inicia a interface. Na primeira execução, a compilação do Rust pode levar alguns minutos.
 
 ```bash
-cd backend
 cp .env.example .env
-cargo run                # http://127.0.0.1:3000
-```
-
-A primeira execução leva alguns minutos, porque o Rust compila as dependências. O banco SQLite e as tabelas são criados sozinhos.
-
-**2. Interface**
-
-```bash
-cp .env.example .env     # VITE_API_BASE_URL=http://localhost:3000
+cp backend/.env.example backend/.env # opcional; os padrões já funcionam
 bun install              # ou: npm install --legacy-peer-deps
-bun run dev              # ou: npm run dev  ->  http://localhost:8080
+bun run dev              # ou: npm run dev
 ```
 
-Abra **http://localhost:8080**, entre em **Fontes RSS**, clique em **Adicionar fonte** e cole o endereço de um site.
+A interface abre em **http://localhost:8080** e a API em **http://localhost:3000**. O banco SQLite é criado automaticamente em `backend/nexus_feed.db`.
 
-> **Modo demonstração:** sem `VITE_API_BASE_URL`, a interface roda com dados fictícios, claramente marcados e com o selo "Modo demonstração" no cabeçalho. Serve para ver o visual sem instalar o Rust.
+Para publicar a interface e a API em hosts diferentes, configure `VITE_API_BASE_URL` no ambiente de build do frontend e inclua a origem do frontend em `CORS_ORIGINS` no backend.
 
 ### Configuração da API (`backend/.env`)
 
@@ -207,9 +195,10 @@ Como é o **servidor** que baixa as URLs informadas pelos usuários, o backend s
 │   ├── components/nexus/      Componentes do produto (menu, cabeçalho, cards, filtros, modal...)
 │   ├── components/ui/         Componentes base (shadcn/ui)
 │   ├── hooks/                 Hooks de dados (React Query) e ações com notificações
-│   ├── services/              Contrato da API, cliente HTTP e dados de demonstração
+│   ├── services/              Contrato da API e cliente HTTP
 │   ├── types/                 Tipos TypeScript (Feed, Article...)
 │   └── test/                  Testes da interface
+├── scripts/                   Inicialização coordenada da API e da interface
 ├── backend/                   API em Rust
 │   ├── src/
 │   │   ├── routes/            Endpoints (feeds, articles) e CORS
