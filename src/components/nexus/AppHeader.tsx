@@ -123,7 +123,7 @@ export function AppHeader({ onOpenMenu }: { onOpenMenu: () => void }) {
               <div className="flex items-start gap-3 px-3 py-3 text-xs text-muted-foreground">
                 <Server className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
                 <span className="break-all">
-{API_BASE_URL ? `Conectado a ${API_BASE_URL}` : "API na mesma origem"}
+                  {API_BASE_URL ? `Conectado a ${API_BASE_URL}` : "API na mesma origem"}
                 </span>
               </div>
               <button

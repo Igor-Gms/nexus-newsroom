@@ -14,14 +14,18 @@ function envFileValue(filePath, key) {
       .map((entry) => entry.trim())
       .find((entry) => entry.startsWith(`${key}=`));
     if (!line) return undefined;
-    return line.slice(key.length + 1).trim().replace(/^(['"])(.*)\\1$/, "$2");
+    const value = line.slice(key.length + 1).trim();
+    const quoted = (value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"));
+    return quoted ? value.slice(1, -1) : value;
   } catch {
     return undefined;
   }
 }
 
-const backendHost = process.env.HOST ?? envFileValue(path.join(backendDir, ".env"), "HOST") ?? "127.0.0.1";
-const backendPort = process.env.PORT ?? envFileValue(path.join(backendDir, ".env"), "PORT") ?? "3000";
+const backendEnvFile = path.join(backendDir, ".env");
+const backendHost =
+  process.env.HOST ?? envFileValue(backendEnvFile, "HOST") ?? "127.0.0.1";
+const backendPort = process.env.PORT ?? envFileValue(backendEnvFile, "PORT") ?? "3000";
 const healthHost = ["0.0.0.0", "::"].includes(backendHost) ? "127.0.0.1" : backendHost;
 const healthUrl = `http://${healthHost}:${backendPort}/api/health`;
 const children = [];
