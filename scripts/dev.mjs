@@ -15,7 +15,9 @@ function envFileValue(filePath, key) {
       .find((entry) => entry.startsWith(`${key}=`));
     if (!line) return undefined;
     const value = line.slice(key.length + 1).trim();
-    const quoted = (value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"));
+    const quoted =
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"));
     return quoted ? value.slice(1, -1) : value;
   } catch {
     return undefined;
