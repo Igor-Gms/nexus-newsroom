@@ -41,11 +41,10 @@ async fn rss() -> impl IntoResponse {
 
 /// Site com o feed em `/feed.xml` (um dos caminhos comuns) e uma página HTML sem tag de feed.
 async fn spawn_feed_server() -> String {
-    spawn_site(
-        Router::new()
-            .route("/feed.xml", get(rss))
-            .route("/pagina", get(|| async { Html("<html><body>página comum</body></html>") })),
-    )
+    spawn_site(Router::new().route("/feed.xml", get(rss)).route(
+        "/pagina",
+        get(|| async { Html("<html><body>página comum</body></html>") }),
+    ))
     .await
 }
 
@@ -60,7 +59,11 @@ async fn test_app(allow_private: bool) -> Router {
     };
     let pool = db::connect(&config.database_url).await.unwrap();
     let http = rss::build_http_client(allow_private).unwrap();
-    routes::router(AppState { db: pool, http, config: Arc::new(config) })
+    routes::router(AppState {
+        db: pool,
+        http,
+        config: Arc::new(config),
+    })
 }
 
 async fn call(app: &Router, method: &str, uri: &str, body: Option<Value>) -> (StatusCode, Value) {
@@ -75,7 +78,11 @@ async fn call(app: &Router, method: &str, uri: &str, body: Option<Value>) -> (St
     let response = app.clone().oneshot(req.body(body).unwrap()).await.unwrap();
     let status = response.status();
     let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
-    let value = if bytes.is_empty() { Value::Null } else { serde_json::from_slice(&bytes).unwrap_or(Value::Null) };
+    let value = if bytes.is_empty() {
+        Value::Null
+    } else {
+        serde_json::from_slice(&bytes).unwrap_or(Value::Null)
+    };
     (status, value)
 }
 
@@ -91,7 +98,13 @@ async fn full_flow() {
 
     // Cadastro: feed válido
     let feed_url = format!("{server}/feed.xml");
-    let (status, body) = call(&app, "POST", "/api/feeds", Some(json!({ "url": feed_url, "category": "Tecnologia" }))).await;
+    let (status, body) = call(
+        &app,
+        "POST",
+        "/api/feeds",
+        Some(json!({ "url": feed_url, "category": "Tecnologia" })),
+    )
+    .await;
     assert_eq!(status, StatusCode::CREATED, "{body}");
     // O cadastro devolve a própria fonte (contrato do frontend: tipo `Feed`).
     assert_eq!(body["title"], "Feed de Teste");
@@ -109,9 +122,18 @@ async fn full_flow() {
     assert_eq!(body["error"]["code"], "conflict");
 
     // Link de uma página do mesmo site: a API acha o feed (/feed.xml), que já está cadastrado -> 409
-    let (status, body) = call(&app, "POST", "/api/feeds", Some(json!({ "url": format!("{server}/pagina") }))).await;
+    let (status, body) = call(
+        &app,
+        "POST",
+        "/api/feeds",
+        Some(json!({ "url": format!("{server}/pagina") })),
+    )
+    .await;
     assert_eq!(status, StatusCode::CONFLICT);
-    assert!(body["error"]["message"].as_str().unwrap().contains("já está cadastrada"));
+    assert!(body["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("já está cadastrada"));
 
     // JSON inválido -> 400 no formato padrão
     let (status, body) = call(&app, "POST", "/api/feeds", Some(json!({ "naoEhUrl": 1 }))).await;
@@ -138,9 +160,21 @@ async fn full_flow() {
     assert_eq!(body["total"], 0);
     let (_, body) = call(&app, "GET", "/api/articles?category=Esportes", None).await;
     assert_eq!(body["total"], 0);
-    let (_, body) = call(&app, "GET", &format!("/api/articles?feedId={feed_id}&category=Tecnologia"), None).await;
+    let (_, body) = call(
+        &app,
+        "GET",
+        &format!("/api/articles?feedId={feed_id}&category=Tecnologia"),
+        None,
+    )
+    .await;
     assert_eq!(body["total"], 2);
-    let (_, body) = call(&app, "GET", &format!("/api/articles?feed_id={feed_id}"), None).await; // alias legado
+    let (_, body) = call(
+        &app,
+        "GET",
+        &format!("/api/articles?feed_id={feed_id}"),
+        None,
+    )
+    .await; // alias legado
     assert_eq!(body["total"], 2);
     let (_, body) = call(&app, "GET", "/api/articles?feedId=outra-fonte", None).await;
     assert_eq!(body["total"], 0);
@@ -173,7 +207,13 @@ async fn full_flow() {
     let (_, body) = call(&app, "POST", &fav_uri, None).await;
     assert_eq!(body["isFavorite"], false);
     // Corpo inválido -> 400
-    let (status, body) = call(&app, "POST", &fav_uri, Some(json!({ "favorite": "talvez" }))).await;
+    let (status, body) = call(
+        &app,
+        "POST",
+        &fav_uri,
+        Some(json!({ "favorite": "talvez" })),
+    )
+    .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["error"]["code"], "bad_request");
 
@@ -216,7 +256,13 @@ async fn full_flow() {
 async fn rejects_private_urls_by_default() {
     let server = spawn_feed_server().await; // escuta em 127.0.0.1
     let app = test_app(false).await;
-    let (status, body) = call(&app, "POST", "/api/feeds", Some(json!({ "url": format!("{server}/feed.xml") }))).await;
+    let (status, body) = call(
+        &app,
+        "POST",
+        "/api/feeds",
+        Some(json!({ "url": format!("{server}/feed.xml") })),
+    )
+    .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(body["error"]["code"], "invalid_feed");
 }
@@ -256,7 +302,13 @@ async fn discovers_feed_announced_in_the_page() {
     .await;
     let app = test_app(true).await;
 
-    let (status, body) = call(&app, "POST", "/api/feeds", Some(json!({ "url": format!("{site}/"), "category": "Notícias" }))).await;
+    let (status, body) = call(
+        &app,
+        "POST",
+        "/api/feeds",
+        Some(json!({ "url": format!("{site}/"), "category": "Notícias" })),
+    )
+    .await;
     assert_eq!(status, StatusCode::CREATED, "{body}");
     // A fonte é salva com o endereço REAL do feed, não com o do site.
     assert_eq!(body["url"], format!("{site}/arquivo/noticias.xml"));
@@ -264,10 +316,25 @@ async fn discovers_feed_announced_in_the_page() {
     assert_eq!(body["articleCount"], 2);
 
     // Colar o site de novo, ou o feed direto, é reconhecido como duplicata.
-    let (status, body) = call(&app, "POST", "/api/feeds", Some(json!({ "url": format!("{site}/") }))).await;
+    let (status, body) = call(
+        &app,
+        "POST",
+        "/api/feeds",
+        Some(json!({ "url": format!("{site}/") })),
+    )
+    .await;
     assert_eq!(status, StatusCode::CONFLICT);
-    assert!(body["error"]["message"].as_str().unwrap().contains("já está cadastrada"));
-    let (status, _) = call(&app, "POST", "/api/feeds", Some(json!({ "url": format!("{site}/arquivo/noticias.xml") }))).await;
+    assert!(body["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("já está cadastrada"));
+    let (status, _) = call(
+        &app,
+        "POST",
+        "/api/feeds",
+        Some(json!({ "url": format!("{site}/arquivo/noticias.xml") })),
+    )
+    .await;
     assert_eq!(status, StatusCode::CONFLICT);
 
     let (_, body) = call(&app, "GET", "/api/feeds", None).await;
@@ -279,13 +346,22 @@ async fn discovers_feed_announced_in_the_page() {
 async fn discovers_feed_in_common_paths() {
     let site = spawn_site(
         Router::new()
-            .route("/", get(|| async { Html("<html><head><title>Sem tag</title></head></html>") }))
+            .route(
+                "/",
+                get(|| async { Html("<html><head><title>Sem tag</title></head></html>") }),
+            )
             .route("/rss", get(rss)),
     )
     .await;
     let app = test_app(true).await;
 
-    let (status, body) = call(&app, "POST", "/api/feeds", Some(json!({ "url": format!("{site}/") }))).await;
+    let (status, body) = call(
+        &app,
+        "POST",
+        "/api/feeds",
+        Some(json!({ "url": format!("{site}/") })),
+    )
+    .await;
     assert_eq!(status, StatusCode::CREATED, "{body}");
     assert_eq!(body["url"], format!("{site}/rss"));
 }
@@ -295,13 +371,22 @@ async fn discovers_feed_in_common_paths() {
 async fn discovers_feed_inside_a_section() {
     let site = spawn_site(
         Router::new()
-            .route("/blog", get(|| async { Html("<html><body>blog</body></html>") }))
+            .route(
+                "/blog",
+                get(|| async { Html("<html><body>blog</body></html>") }),
+            )
             .route("/blog/feed", get(rss)),
     )
     .await;
     let app = test_app(true).await;
 
-    let (status, body) = call(&app, "POST", "/api/feeds", Some(json!({ "url": format!("{site}/blog") }))).await;
+    let (status, body) = call(
+        &app,
+        "POST",
+        "/api/feeds",
+        Some(json!({ "url": format!("{site}/blog") })),
+    )
+    .await;
     assert_eq!(status, StatusCode::CREATED, "{body}");
     assert_eq!(body["url"], format!("{site}/blog/feed"));
 }
@@ -311,18 +396,35 @@ async fn discovers_feed_inside_a_section() {
 async fn explains_when_the_site_has_no_feed() {
     let site = spawn_site(
         Router::new()
-            .route("/", get(|| async { Html("<html><head><link rel=\"stylesheet\" href=\"/a.css\"></head></html>") }))
-            .route("/dados", get(|| async { ([(header::CONTENT_TYPE, "application/json")], "{\"a\":1}") })),
+            .route(
+                "/",
+                get(|| async {
+                    Html("<html><head><link rel=\"stylesheet\" href=\"/a.css\"></head></html>")
+                }),
+            )
+            .route(
+                "/dados",
+                get(|| async { ([(header::CONTENT_TYPE, "application/json")], "{\"a\":1}") }),
+            ),
     )
     .await;
     let app = test_app(true).await;
 
     for path in ["/", "/dados"] {
-        let (status, body) = call(&app, "POST", "/api/feeds", Some(json!({ "url": format!("{site}{path}") }))).await;
+        let (status, body) = call(
+            &app,
+            "POST",
+            "/api/feeds",
+            Some(json!({ "url": format!("{site}{path}") })),
+        )
+        .await;
         assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{path}: {body}");
         assert_eq!(body["error"]["code"], "invalid_feed");
         let message = body["error"]["message"].as_str().unwrap();
-        assert!(message.contains("não encontramos nenhum feed RSS ou Atom em 127.0.0.1"), "{message}");
+        assert!(
+            message.contains("não encontramos nenhum feed RSS ou Atom em 127.0.0.1"),
+            "{message}"
+        );
         assert!(message.contains("cole o link direto"), "{message}");
     }
 
@@ -335,7 +437,16 @@ async fn explains_when_the_site_has_no_feed() {
 async fn reports_http_errors_of_the_given_url() {
     let site = spawn_site(Router::new()).await;
     let app = test_app(true).await;
-    let (status, body) = call(&app, "POST", "/api/feeds", Some(json!({ "url": format!("{site}/nao-existe") }))).await;
+    let (status, body) = call(
+        &app,
+        "POST",
+        "/api/feeds",
+        Some(json!({ "url": format!("{site}/nao-existe") })),
+    )
+    .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
-    assert!(body["error"]["message"].as_str().unwrap().contains("status HTTP 404"));
+    assert!(body["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("status HTTP 404"));
 }

@@ -101,6 +101,11 @@
   border: 1px solid var(--border);
 }
 
+@utility sidebar-surface {
+  background: color-mix(in oklab, var(--card) 88%, transparent);
+  border: 1px solid var(--border);
+}
+
 @utility bg-brand {
   background-image: var(--gradient-brand);
 }

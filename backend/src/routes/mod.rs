@@ -22,7 +22,10 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/api/health", get(health))
         // Fontes RSS
-        .route("/api/feeds", get(feeds::list_feeds).post(feeds::create_feed))
+        .route(
+            "/api/feeds",
+            get(feeds::list_feeds).post(feeds::create_feed),
+        )
         .route("/api/feeds/{id}", delete(feeds::delete_feed))
         .route("/api/feeds/{id}/refresh", post(feeds::refresh_feed))
         // Artigos

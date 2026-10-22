@@ -3,11 +3,7 @@
 //! O `feed-rs` faz o trabalho pesado de interpretar o XML (RSS 0.9x/2.0, Atom e JSON Feed)
 //! e devolve uma estrutura única. Aqui convertemos para tipos simples e seguros para o nosso banco.
 
-use std::{
-    net::IpAddr,
-    sync::LazyLock,
-    time::Duration,
-};
+use std::{net::IpAddr, sync::LazyLock, time::Duration};
 
 use chrono::{DateTime, Utc};
 use reqwest::{header, redirect, Client};
@@ -143,7 +139,9 @@ pub async fn ensure_public_url(raw: &str, allow_private: bool) -> Result<Url, Fe
         }
     }
     if !found_any {
-        return Err(FetchError::Network("o domínio não pôde ser resolvido".into()));
+        return Err(FetchError::Network(
+            "o domínio não pôde ser resolvido".into(),
+        ));
     }
     Ok(url)
 }
@@ -248,27 +246,46 @@ pub async fn discover_feed(
     url: &Url,
     allow_private: bool,
 ) -> Result<DiscoveredFeed, FetchError> {
-    let page = download(client, url).await?;
+    // 1. Tenta baixar a URL informada.
+    // Se a página inicial falhar, ainda tentamos os caminhos comuns de RSS.
+    let page = match download(client, url).await {
+        Ok(page) => page,
+        Err(original_error) => {
+            let candidates = common_feed_candidates(url);
 
-    // 1) O link informado já é um feed.
-    if let Ok(feed) = parse_feed(&page.body, url) {
-        return Ok(DiscoveredFeed { url: url.clone(), feed });
+            if let Some(found) = probe_candidates(client, candidates, url, allow_private).await {
+                return Ok(found);
+            }
+
+            // Se nenhuma alternativa funcionar, preserva o erro original.
+            return Err(original_error);
+        }
+    };
+
+    // 2. A URL informada já pode ser um feed RSS, Atom ou JSON Feed.
+    if let Ok(feed) = parse_feed(&page.body, &page.final_url) {
+        return Ok(DiscoveredFeed {
+            url: page.final_url,
+            feed,
+        });
     }
 
-    // 2) Feeds anunciados na própria página. (`Html` não pode atravessar um `.await`,
-    //    por isso a leitura do HTML fica numa função síncrona que devolve só URLs.)
+    // 3. Procura feeds anunciados no HTML da página.
     let html = String::from_utf8_lossy(&page.body);
     let announced = feed_links_in_html(&html, &page.final_url);
+
     if let Some(found) = probe_candidates(client, announced, url, allow_private).await {
         return Ok(found);
     }
 
-    // 3) Caminhos comuns.
+    // 4. Se não houver feed anunciado, tenta caminhos conhecidos.
     let common = common_feed_candidates(&page.final_url);
+
     if let Some(found) = probe_candidates(client, common, url, allow_private).await {
         return Ok(found);
     }
 
+    // 5. Nenhum feed válido foi encontrado.
     Err(FetchError::FeedNotFound(
         url.host_str().unwrap_or("esse endereço").to_string(),
     ))
@@ -288,7 +305,9 @@ async fn probe_candidates(
             let client = client.clone();
             tokio::spawn(async move {
                 // Os endereços vêm de HTML de terceiros: passam pela mesma proteção SSRF.
-                let url = ensure_public_url(candidate.as_str(), allow_private).await.ok()?;
+                let url = ensure_public_url(candidate.as_str(), allow_private)
+                    .await
+                    .ok()?;
                 let feed = tokio::time::timeout(PROBE_TIMEOUT, fetch_feed(&client, &url))
                     .await
                     .ok()?
@@ -344,12 +363,19 @@ fn feed_links_in_html(html: &str, page_url: &Url) -> Vec<Url> {
     let mut found: Vec<(bool, Url)> = Vec::new();
     for link in document.select(&LINK_SELECTOR) {
         let el = link.value();
-        let is_alternate = el
-            .attr("rel")
-            .is_some_and(|rel| rel.split_whitespace().any(|t| t.eq_ignore_ascii_case("alternate")));
+        let is_alternate = el.attr("rel").is_some_and(|rel| {
+            rel.split_whitespace()
+                .any(|t| t.eq_ignore_ascii_case("alternate"))
+        });
         let mime = el
             .attr("type")
-            .map(|t| t.split(';').next().unwrap_or("").trim().to_ascii_lowercase())
+            .map(|t| {
+                t.split(';')
+                    .next()
+                    .unwrap_or("")
+                    .trim()
+                    .to_ascii_lowercase()
+            })
             .unwrap_or_default();
         if !is_alternate || !FEED_MIME_TYPES.contains(&mime.as_str()) {
             continue;
@@ -444,8 +470,11 @@ pub fn parse_feed(bytes: &[u8], feed_url: &Url) -> Result<ParsedFeed, FetchError
                 .filter(|t| !t.is_empty())
                 .unwrap_or_else(|| "(Sem título)".to_string());
 
-            let description = Some(truncate_chars(&html_to_text(&raw_html), MAX_DESCRIPTION_CHARS))
-                .filter(|d| !d.is_empty());
+            let description = Some(truncate_chars(
+                &html_to_text(&raw_html),
+                MAX_DESCRIPTION_CHARS,
+            ))
+            .filter(|d| !d.is_empty());
 
             let author = entry
                 .authors
@@ -460,11 +489,7 @@ pub fn parse_feed(bytes: &[u8], feed_url: &Url) -> Result<ParsedFeed, FetchError
             };
 
             // Datas no futuro (feeds mal configurados) são limitadas a "agora".
-            let published_at = entry
-                .published
-                .or(entry.updated)
-                .unwrap_or(now)
-                .min(now);
+            let published_at = entry.published.or(entry.updated).unwrap_or(now).min(now);
 
             Some(ParsedEntry {
                 guid,
@@ -529,8 +554,30 @@ fn first_image_in_html(html: &str) -> Option<String> {
 /// Elementos que criam uma quebra visual: entre eles inserimos um espaço
 /// (tags "inline", como <b> e <a>, não separam as palavras).
 const BLOCK_TAGS: &[&str] = &[
-    "p", "div", "br", "li", "ul", "ol", "tr", "td", "th", "table", "blockquote", "section",
-    "article", "header", "footer", "pre", "hr", "h1", "h2", "h3", "h4", "h5", "h6", "figure",
+    "p",
+    "div",
+    "br",
+    "li",
+    "ul",
+    "ol",
+    "tr",
+    "td",
+    "th",
+    "table",
+    "blockquote",
+    "section",
+    "article",
+    "header",
+    "footer",
+    "pre",
+    "hr",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "figure",
     "figcaption",
 ];
 
@@ -629,9 +676,15 @@ mod tests {
 
     #[test]
     fn html_to_text_keeps_inline_words_together() {
-        assert_eq!(html_to_text("<p>Banco <b>simples</b>.</p><p>Outro</p>"), "Banco simples. Outro");
+        assert_eq!(
+            html_to_text("<p>Banco <b>simples</b>.</p><p>Outro</p>"),
+            "Banco simples. Outro"
+        );
         assert_eq!(html_to_text("linha 1<br>linha 2"), "linha 1 linha 2");
-        assert_eq!(html_to_text("a&amp;b <style>x{}</style><script>y()</script>fim"), "a&b fim");
+        assert_eq!(
+            html_to_text("a&amp;b <style>x{}</style><script>y()</script>fim"),
+            "a&b fim"
+        );
     }
 
     #[test]
@@ -661,7 +714,10 @@ mod tests {
             <link rel="alternate" type="application/rss+xml" href="feed.xml">
         </head><body></body></html>"#;
         let page = Url::parse("https://exemplo.com/").unwrap();
-        let urls: Vec<String> = feed_links_in_html(html, &page).iter().map(|u| u.to_string()).collect();
+        let urls: Vec<String> = feed_links_in_html(html, &page)
+            .iter()
+            .map(|u| u.to_string())
+            .collect();
         // Sem duplicatas, sem `javascript:`, sem HTML/CSS, e o feed de comentários fica por último.
         assert_eq!(
             urls,
@@ -682,31 +738,65 @@ mod tests {
     #[test]
     fn builds_common_feed_candidates() {
         let site = Url::parse("https://exemplo.com/").unwrap();
-        let urls: Vec<String> = common_feed_candidates(&site).iter().map(|u| u.to_string()).collect();
-        assert_eq!(urls.first().map(String::as_str), Some("https://exemplo.com/feed"));
+        let urls: Vec<String> = common_feed_candidates(&site)
+            .iter()
+            .map(|u| u.to_string())
+            .collect();
+        assert_eq!(
+            urls.first().map(String::as_str),
+            Some("https://exemplo.com/feed")
+        );
         assert!(urls.contains(&"https://exemplo.com/atom.xml".to_string()));
         assert_eq!(urls.len(), COMMON_FEED_PATHS.len());
 
         let section = Url::parse("https://exemplo.com/blog/?x=1").unwrap();
-        let urls: Vec<String> = common_feed_candidates(&section).iter().map(|u| u.to_string()).collect();
+        let urls: Vec<String> = common_feed_candidates(&section)
+            .iter()
+            .map(|u| u.to_string())
+            .collect();
         assert!(urls.contains(&"https://exemplo.com/blog/feed".to_string()));
         assert!(urls.contains(&"https://exemplo.com/blog/rss".to_string()));
     }
 
     #[test]
     fn classifies_ips() {
-        for private in ["127.0.0.1", "10.0.0.5", "192.168.1.10", "172.16.0.1", "169.254.1.1", "100.64.0.1", "::1", "fd00::1", "::ffff:127.0.0.1"] {
-            assert!(!is_public_ip(private.parse().unwrap()), "{private} deveria ser bloqueado");
+        for private in [
+            "127.0.0.1",
+            "10.0.0.5",
+            "192.168.1.10",
+            "172.16.0.1",
+            "169.254.1.1",
+            "100.64.0.1",
+            "::1",
+            "fd00::1",
+            "::ffff:127.0.0.1",
+        ] {
+            assert!(
+                !is_public_ip(private.parse().unwrap()),
+                "{private} deveria ser bloqueado"
+            );
         }
         for public in ["8.8.8.8", "1.1.1.1", "2606:4700:4700::1111"] {
-            assert!(is_public_ip(public.parse().unwrap()), "{public} deveria ser permitido");
+            assert!(
+                is_public_ip(public.parse().unwrap()),
+                "{public} deveria ser permitido"
+            );
         }
     }
 
     #[tokio::test]
     async fn blocks_private_urls() {
-        for raw in ["http://localhost/feed", "http://127.0.0.1:8080/x", "http://[::1]/x", "ftp://exemplo.com/x", "javascript:alert(1)"] {
-            assert!(ensure_public_url(raw, false).await.is_err(), "{raw} deveria ser rejeitada");
+        for raw in [
+            "http://localhost/feed",
+            "http://127.0.0.1:8080/x",
+            "http://[::1]/x",
+            "ftp://exemplo.com/x",
+            "javascript:alert(1)",
+        ] {
+            assert!(
+                ensure_public_url(raw, false).await.is_err(),
+                "{raw} deveria ser rejeitada"
+            );
         }
     }
 }

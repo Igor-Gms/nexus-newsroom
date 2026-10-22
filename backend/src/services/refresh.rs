@@ -25,7 +25,8 @@ pub async fn refresh_feed(state: &AppState, feed_id: &str) -> AppResult<Feed> {
 
     match result {
         Ok(parsed) => {
-            let new_articles = repository::upsert_articles(&state.db, feed_id, &parsed.entries).await?;
+            let new_articles =
+                repository::upsert_articles(&state.db, feed_id, &parsed.entries).await?;
             sqlx::query(
                 "UPDATE feeds SET status = ?, last_error = NULL, last_fetched_at = ?, \
                  site_url = COALESCE(?, site_url) WHERE id = ?",
@@ -41,13 +42,15 @@ pub async fn refresh_feed(state: &AppState, feed_id: &str) -> AppResult<Feed> {
         }
         Err(err) => {
             // Guardamos o erro para o frontend mostrar o estado da fonte.
-            sqlx::query("UPDATE feeds SET status = ?, last_error = ?, last_fetched_at = ? WHERE id = ?")
-                .bind(FeedStatus::Error)
-                .bind(err.to_string())
-                .bind(Utc::now())
-                .bind(feed_id)
-                .execute(&state.db)
-                .await?;
+            sqlx::query(
+                "UPDATE feeds SET status = ?, last_error = ?, last_fetched_at = ? WHERE id = ?",
+            )
+            .bind(FeedStatus::Error)
+            .bind(err.to_string())
+            .bind(Utc::now())
+            .bind(feed_id)
+            .execute(&state.db)
+            .await?;
             Err(AppError::Upstream(err.to_string()))
         }
     }

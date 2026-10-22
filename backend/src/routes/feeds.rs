@@ -17,9 +17,10 @@ use crate::{
 
 /// GET /api/feeds
 pub async fn list_feeds(State(state): State<AppState>) -> AppResult<Json<Vec<Feed>>> {
-    let feeds = sqlx::query_as::<_, Feed>(&format!("{FEED_SELECT} ORDER BY f.title COLLATE NOCASE"))
-        .fetch_all(&state.db)
-        .await?;
+    let feeds =
+        sqlx::query_as::<_, Feed>(&format!("{FEED_SELECT} ORDER BY f.title COLLATE NOCASE"))
+            .fetch_all(&state.db)
+            .await?;
     Ok(Json(feeds))
 }
 

@@ -43,7 +43,9 @@ async fn main() -> anyhow::Result<()> {
 /// Espera Ctrl+C (ou SIGTERM no Linux/Docker) para encerrar sem derrubar requisições em andamento.
 async fn shutdown_signal() {
     let ctrl_c = async {
-        tokio::signal::ctrl_c().await.expect("falha ao ouvir Ctrl+C");
+        tokio::signal::ctrl_c()
+            .await
+            .expect("falha ao ouvir Ctrl+C");
     };
 
     #[cfg(unix)]

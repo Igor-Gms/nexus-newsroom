@@ -39,7 +39,9 @@ pub async fn get_article(db: &SqlitePool, id: &str) -> AppResult<Article> {
 }
 
 pub async fn list_feed_ids(db: &SqlitePool) -> Result<Vec<String>, sqlx::Error> {
-    sqlx::query_scalar("SELECT id FROM feeds").fetch_all(db).await
+    sqlx::query_scalar("SELECT id FROM feeds")
+        .fetch_all(db)
+        .await
 }
 
 pub async fn insert_feed(

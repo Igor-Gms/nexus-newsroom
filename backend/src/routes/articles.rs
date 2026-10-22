@@ -32,7 +32,10 @@ pub async fn list_articles(
         "SELECT COUNT(*) FROM articles a JOIN feeds f ON f.id = a.feed_id",
     );
     apply_filters(&mut count_query, &params);
-    let total: i64 = count_query.build_query_scalar().fetch_one(&state.db).await?;
+    let total: i64 = count_query
+        .build_query_scalar()
+        .fetch_one(&state.db)
+        .await?;
 
     // Página de resultados.
     let mut list_query = QueryBuilder::<Sqlite>::new(ARTICLE_SELECT);
@@ -95,7 +98,9 @@ fn non_empty(value: &Option<String>) -> Option<&str> {
 
 /// Escapa `%`, `_` e `\` para que o texto digitado seja buscado literalmente no LIKE.
 fn escape_like(text: &str) -> String {
-    text.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_")
+    text.replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
 }
 
 /// GET /api/articles/:id
@@ -189,10 +194,12 @@ async fn update_flag(
                 .await?
         }
         None => {
-            sqlx::query(&format!("UPDATE articles SET {column} = 1 - {column} WHERE id = ?"))
-                .bind(id)
-                .execute(&state.db)
-                .await?
+            sqlx::query(&format!(
+                "UPDATE articles SET {column} = 1 - {column} WHERE id = ?"
+            ))
+            .bind(id)
+            .execute(&state.db)
+            .await?
         }
     };
     if result.rows_affected() == 0 {
